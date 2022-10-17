@@ -1,0 +1,35 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Hyper-V Provider Specific Configuration
+  config.vm.provider "hyperv" do |h|
+    h.enable_virtualization_extensions = true
+    h.linked_clone = true
+    h.memory = 2048
+    h.maxmemory = 2048
+  end
+
+  # Virtualbox Provider Specific Configuration
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 2048
+    v.cpus = 2
+  end
+
+  config.vm.define "rocky8" do |rocky8|
+    # VM Shared Configuration
+    rocky8.vm.box = "generic/rocky8"
+    rocky8.vm.hostname = "rocky8"
+
+    # Hyper-V VM Specific Configuration
+    rocky8.vm.provider 'hyperv' do |h, override|
+      override.vm.synced_folder ".", "/vagrant", type: "rsync"
+      override.vm.network "public_network", bridge: "Default Switch"
+    end
+
+    # Virtualbox VM Specific Configuration
+    rocky8.vm.provider 'virtualbox' do |v, override|
+      override.vm.synced_folder ".", "/vagrant"
+    end
+  end
+end
