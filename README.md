@@ -5,11 +5,12 @@
   - [Documentation](#documentation)
   - [Installation](#installation)
     - [Option A - Manual Provisioning](#option-a---manual-provisioning)
-      - [Create Virtual Machine](#create-virtual-machine)
-      - [Install Podman - Rootless Mode](#install-podman---rootless-mode)
-  - [Deploy containers](#deploy-containers)
-  - [Inspect image](#inspect-image)
-  - [Interact with container](#interact-with-container)
+      - [Creating Virtual Machine](#creating-virtual-machine)
+      - [Installing Podman - Rootless Mode](#installing-podman---rootless-mode)
+  - [Deploying containers](#deploying-containers)
+  - [Inspecting image](#inspecting-image)
+  - [Interacting with container](#interacting-with-container)
+  - [Managing container lifecycle](#managing-container-lifecycle)
 
 
 ## Introduction
@@ -33,7 +34,7 @@ For the examples below, I will leverage a WSL2 client environment with Hyper-V b
 
 The following section describes how to install Podman manually on a Rocky Linux 8 OS.
 
-#### Create Virtual Machine
+#### Creating Virtual Machine
 
 Start by provisioning a new Virtual Machine.
 
@@ -44,7 +45,7 @@ vagrant up && vagrant ssh
 
 This should land you a user shell a good place to start playing with podman.
 
-#### Install Podman - Rootless Mode
+#### Installing Podman - Rootless Mode
 
 The benefit of using Podman in rootless mode is that the users don't need elevated privileges to run containers.
 
@@ -58,13 +59,16 @@ The `podman` package is available from standard `appstream` repository and can b
 sudo dnf install -y podman
 ```
 
+> **Note**: In order to use `sudo` for privilege escalation, it is common that the user is member of `wheel` group. This can be confirmed by using `id -Gn` command. An alternative approach is to create a separate user file in the `/etc/sudoers.d/` directory.
+
+> **Note**: I also highly suggest to install the `bash-completion` package. It will allow you to use `TAB` to complete most of the commands.
+
+
 Verify that the `slirp4netns` was installed as well. This is required for managing container networking.
 
 ```bash
 dnf list installed slirp4netns
 ```
-
-> **Note**: In order to use `sudo` for privilege escalation, it is common that the user is member of `wheel` group. This can be confirmed by using `id -Gn` command. An alternative approach is to create a separate user file in the `/etc/sudoers.d/` directory.
 
 Verify the default namespace configuration and user id mappings.
 
@@ -87,7 +91,7 @@ podman info
 ```
 
 
-## Deploy containers
+## Deploying containers
 
 Now that we have Podman installed, its time to run some containers. These ship in form of an container images and can be pulled from image registry.
 
@@ -123,7 +127,7 @@ In order to search for an image use the `podman search` command.
 podman search httpd
 ```
 
-To start an container use `podman run` command. The `it` argument starts an interactive terminal session in bash shell.
+To start an container use `podman run` command. The `it` argument starts an interactive terminal session in bash shell. This will automatically download the image if it not present locally.
 
 ```bash
 podman run -it rhscl/httpd-24-rhel7 /bin/bash
@@ -138,7 +142,7 @@ ps -elf | grep -v ps
 To detach from interactive console without stopping the container use the `CTRL-p + CTRL-q`. To reattach use `podman attach` with container id.
 
 
-## Inspect image
+## Inspecting image
 
 When you are using 3rd party images it is useful to do an inspection in order understand which options are supported.
 
@@ -149,9 +153,9 @@ podman inspect registry.access.redhat.com/rhscl/httpd-24-rhel7 | grep expose
 ```
 
 
-## Interact with container
+## Interacting with container
 
-To run a container in background use `-d` argument and map these ports to host use the `-p` argument.
+To run a container in background use `-d` argument and map these ports to host use the `-p` argument. You can also use the `--publish-all` to map exposed ports defined in the image. Afterwards you can list the mapped ports using `podman port` command.
 
 ```bash
 podman run --name=www -d -p 8000:8080 rhscl/httpd-24-rhel7
@@ -173,4 +177,37 @@ Verify the application from host.
 
 ```bash
 curl -I localhost:8000
+```
+
+In order to expose the application outside of host you need to ensure host firewall is configured accordingly.
+
+```bash
+sudo firewall-cmd --add-port 8000/tcp
+```
+
+
+## Managing container lifecycle
+
+In order to stop an existing container use the `podman stop` command. You can supply container name or id or use `-l` to refer to last container or `-a` to refer to all containers. The container configuration will remain unchanged.
+
+```bash
+podman stop www
+```
+
+When the container is misbehaving it is possible to send `SIGKILL` to its `PID 1` using the `kill` argument.
+
+```bash
+podman kill www
+```
+
+To restart a running container use `podman restart`.
+
+```bash
+podman restart www
+```
+
+To delete a running container use `podman rm` with `-f` flag.
+
+```bash
+podman rm -f www
 ```
