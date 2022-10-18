@@ -7,6 +7,9 @@
     - [Option A - Manual Provisioning](#option-a---manual-provisioning)
       - [Create Virtual Machine](#create-virtual-machine)
       - [Install Podman - Rootless Mode](#install-podman---rootless-mode)
+  - [Deploy containers](#deploy-containers)
+  - [Inspect image](#inspect-image)
+  - [Interact with container](#interact-with-container)
 
 
 ## Introduction
@@ -81,4 +84,93 @@ podman version
 
 ```bash
 podman info
+```
+
+
+## Deploy containers
+
+Now that we have Podman installed, its time to run some containers. These ship in form of an container images and can be pulled from image registry.
+
+To list existing images stored locally use `podman image ls` command. To list all containers (running and stopped) use the `podman ps -a` command.
+
+The list of currently used registries can be retrieved from `podman info` with a filter flag.
+
+```bash
+podman info -f '{{range index .Registries "search"}}{{.}}\n{{end}}'
+```
+
+The output should contain the following entries.
+
+```bash
+registry.access.redhat.com
+registry.redhat.io
+docker.io
+```
+
+These are the default and are defined in `/etc/containers/registries.conf`.
+
+```bash
+# Using grep to filter comments and empty lines
+grep -v '^\s*$\|^\s*\#' /etc/containers/registries.conf
+
+# Using sed to filter comments and empty lines
+sed -E '/^(#|$)/d' /etc/containers/registries.conf
+```
+
+In order to search for an image use the `podman search` command.
+
+```bash
+podman search httpd
+```
+
+To start an container use `podman run` command. The `it` argument starts an interactive terminal session in bash shell.
+
+```bash
+podman run -it rhscl/httpd-24-rhel7 /bin/bash
+```
+
+To prove that `bin/bash` is the only process running in this container use the `ps -elf` command.
+
+```bash
+ps -elf | grep -v ps
+```
+
+To detach from interactive console without stopping the container use the `CTRL-p + CTRL-q`. To reattach use `podman attach` with container id.
+
+
+## Inspect image
+
+When you are using 3rd party images it is useful to do an inspection in order understand which options are supported.
+
+For example to list the exposed ports you can use the following command:
+
+```bash
+podman inspect registry.access.redhat.com/rhscl/httpd-24-rhel7 | grep expose
+```
+
+
+## Interact with container
+
+To run a container in background use `-d` argument and map these ports to host use the `-p` argument.
+
+```bash
+podman run --name=www -d -p 8000:8080 rhscl/httpd-24-rhel7
+```
+
+To enter an existing container use the `exec` argument.
+
+```bash
+podman exec -it www /bin/bash
+```
+
+Verify the application from within the container.
+
+```bash
+curl -I localhost:8080
+```
+
+Verify the application from host.
+
+```bash
+curl -I localhost:8000
 ```
