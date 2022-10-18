@@ -11,6 +11,7 @@
   - [Inspecting image](#inspecting-image)
   - [Interacting with container](#interacting-with-container)
   - [Managing container lifecycle](#managing-container-lifecycle)
+  - [Managing persistent data](#managing-persistent-data)
 
 
 ## Introduction
@@ -210,4 +211,30 @@ To delete a running container use `podman rm` with `-f` flag.
 
 ```bash
 podman rm -f www
+```
+
+
+## Managing persistent data
+
+In order to persist data that while using containers, we can create a bind mount. This will mount a host directory or a named volume into running container.
+
+The following example maps the `web-files` in the current working directory to default `html` directory within the container.
+
+```bash
+podman run --name=www -d \
+           -p 8000:8080 \
+           -v $PWD/web-files:/var/www/html \
+           rhscl/httpd-24-rhel7
+```
+
+> **Note**: If SELinux is used, the `container_file_t` type should be set on host directory. `chcon -Rvt container_file_t web-files/`. WIthout this, container user will not be able to read this mapped directory. See below:
+
+```bash
+# Before changing SElinux context
+podman exec -it www stat -c %A,%C /var/www/html
+drwxrwxr-x,unconfined_u:object_r:user_home_t:s0
+
+# After changing SElinux context
+podman exec -it www stat -c %A,%C /var/www/html
+drwxrwxr-x,unconfined_u:object_r:container_file_t:s0
 ```
